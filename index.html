@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE DIODE TRICK · 555 Variable Duty-Cycle Oscillator</title>
+<style>
+:root{
+  --paper:#f0ebf5; --ink:#2a2438; --ink-mid:#4a4360; --ink-faint:#8a83a0;
+  --plum:#5b3a87; --plum-light:#7e5bb0; --plum-soft:#e6ddf0; --plum-deep:#3f2860;
+  --gold:#9a7d3a; --rose:#9a4a6a; --green:#3a7a5a; --teal:#3a6a87;
+  --scope:#7affb0;
+  --line:#cbbfdd;
+  --mono:"Courier New",Courier,monospace;
+  --serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);
+  background-image:repeating-linear-gradient(0deg, rgba(91,58,135,.03) 0 1px, transparent 1px 3px);
+  color:var(--ink);font-family:var(--serif);line-height:1.5;padding:10px}
+.sheet{max-width:820px;margin:0 auto;border:2.5px solid var(--plum);position:relative}
+.sheet::before{content:'';position:absolute;inset:5px;border:1px solid var(--plum-light);pointer-events:none}
+.inner{padding:22px}
+.masthead{text-align:center;border-bottom:2px solid var(--plum);padding-bottom:10px}
+.mast-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:var(--plum-light);text-transform:uppercase}
+.mast-title{font-size:clamp(20px,4.6vw,32px);letter-spacing:.02em;font-weight:700;margin:5px 0 2px;text-transform:uppercase;color:var(--plum)}
+.mast-sub{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-mid)}
+.lede{font-size:12px;max-width:660px;margin:10px auto 0;text-align:center;color:var(--ink-mid);line-height:1.55}
+.lede b{color:var(--plum)}
+.stage{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+@media(max-width:640px){.stage{grid-template-columns:1fr}}
+.panel{border:1.5px solid var(--plum-light);background:rgba(126,91,176,.05);padding:10px}
+.panel h3{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--plum);text-align:center;margin-bottom:8px}
+svg{display:block;margin:0 auto;max-width:100%}
+canvas{display:block;width:100%;height:auto;background:#0f1810;border-radius:5px}
+.controls{margin:12px 0}
+.ctrl{display:flex;align-items:center;gap:10px;margin:8px 0;font-family:var(--mono);font-size:11px}
+.ctrl label{width:130px;color:var(--ink-mid)}
+.ctrl input[type=range]{flex:1;accent-color:var(--plum)}
+.ctrl .v{width:70px;text-align:right;color:var(--plum);font-weight:700}
+.toggle{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px 0}
+.tbtn{appearance:none;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:10px 18px;border:2px solid var(--gold);background:transparent;color:#6a5520;border-radius:5px;font-weight:700}
+.tbtn.on{background:var(--gold);color:#fff}
+.readout{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-mid);margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:5px}
+.readout .item{text-align:center}
+.readout .item b{display:block;font-size:18px;color:var(--plum);font-family:var(--serif)}
+.ledrow{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0;font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.led{width:22px;height:22px;border-radius:50%;background:#3a2030;border:2px solid #5a3040;transition:.05s}
+.led.on{background:#ff5a7a;border-color:#ff9ab0;box-shadow:0 0 14px #ff5a7a}
+.note{font-family:var(--mono);font-size:9.5px;background:var(--plum-soft);border-left:2px solid var(--plum-light);padding:8px 11px;margin:10px 0;line-height:1.7;color:var(--ink-mid)}
+.note b{color:var(--plum)}
+.statebadge{text-align:center;font-family:var(--mono);font-size:10px;margin:6px 0;color:var(--ink-faint)}
+.statebadge .hi{color:var(--green);font-weight:700} .statebadge .lo{color:var(--rose);font-weight:700}
+.colophon{margin-top:16px;border-top:2px solid var(--plum);padding-top:10px;text-align:center;font-family:var(--mono);font-size:8.5px;color:var(--ink-mid);letter-spacing:.05em;line-height:1.8}
+.colophon b{color:var(--plum)}
+</style>
+</head>
+<body>
+<div class="sheet"><div class="inner">
+
+<header class="masthead">
+  <div class="mast-eyebrow">Series E · The Duty Cycle Made Physical</div>
+  <h1 class="mast-title">The Diode Trick</h1>
+  <div class="mast-sub">555 astable · one diode · independent on/off · any duty cycle</div>
+  <p class="lede">The single most common 555+diode circuit. Without the diode, the duty cycle is <b>locked above 50%</b>. Add <b>one diode</b> across R2 and you split the timing into two one-way paths — charge through R1, discharge through R2 — so you can set on-time and off-time <b>independently</b>. The duty cycle, made physical.</p>
+</header>
+
+<div class="stage">
+  <div class="panel">
+    <h3>◆ the circuit</h3>
+    <svg id="schem" viewBox="0 0 260 280" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="panel">
+    <h3>◆ the scope</h3>
+    <canvas id="scope" width="260" height="160"></canvas>
+    <div class="statebadge" id="statebadge"></div>
+    <div class="ledrow">output → <span class="led" id="led"></span> LED</div>
+  </div>
+</div>
+
+<div class="toggle">
+  <button class="tbtn" id="diodebtn" onclick="toggleDiode()">◇ DIODE: OFF</button>
+  <span style="font-family:var(--mono);font-size:10px;color:var(--ink-faint)">toggle to split the path</span>
+</div>
+
+<div class="controls">
+  <div class="ctrl"><label>R1 (charge)</label><input type="range" id="r1" min="1" max="100" value="10" oninput="update()"><span class="v" id="r1v">10kΩ</span></div>
+  <div class="ctrl"><label>R2 (discharge)</label><input type="range" id="r2" min="1" max="100" value="47" oninput="update()"><span class="v" id="r2v">47kΩ</span></div>
+</div>
+
+<div class="readout">
+  <div class="item"><b id="freq">—</b>frequency</div>
+  <div class="item"><b id="duty">—</b>duty cycle</div>
+  <div class="item"><b id="thigh">—</b>t_high</div>
+  <div class="item"><b id="tlow">—</b>t_low</div>
+</div>
+
+<div class="note" id="explain"></div>
+
+<div class="colophon">
+  555 ASTABLE · DIODE ACROSS R2 · CHARGE THROUGH R1, DISCHARGE THROUGH R2 · INDEPENDENT ON/OFF<br>
+  NO DIODE → DUTY LOCKED >50% · DIODE → ANY DUTY (R1&lt;R2 UNDER 50%, R1=R2 AT 50%, R1&gt;R2 OVER)<br>
+  ONE DIODE SPLITS ONE BIDIRECTIONAL RC PATH INTO TWO ONE-WAY PATHS = THE ASYMMETRIC CLOCK<br>
+  THE DIODE TRICK · A PURPLE PAPER · SERIES E · JUNE 2026
+</div>
+
+</div></div>
+<script>
+const C=10e-6, ln2=0.693;
+let diodeOn=false;
+let state='high', cap=1/3, t0=performance.now(), anim=null;
+let scopeBuf=[];
+
+function vals(){
+  const R1=parseInt(document.getElementById('r1').value)*1000;
+  const R2=parseInt(document.getElementById('r2').value)*1000;
+  let tH,tL;
+  if(diodeOn){ tH=ln2*R1*C; tL=ln2*R2*C; }
+  else { tH=ln2*(R1+R2)*C; tL=ln2*R2*C; }
+  const T=tH+tL;
+  return {R1,R2,tH,tL,T,f:1/T,duty:100*tH/T};
+}
+function update(){
+  const v=vals();
+  document.getElementById('r1v').textContent=(v.R1/1000)+'kΩ';
+  document.getElementById('r2v').textContent=(v.R2/1000)+'kΩ';
+  document.getElementById('freq').textContent=v.f.toFixed(2)+' Hz';
+  document.getElementById('duty').textContent=v.duty.toFixed(1)+'%';
+  document.getElementById('thigh').textContent=(v.tH*1000).toFixed(0)+' ms';
+  document.getElementById('tlow').textContent=(v.tL*1000).toFixed(0)+' ms';
+  const ex=document.getElementById('explain');
+  if(diodeOn){
+    ex.innerHTML='<b>diode ON:</b> charge runs through R1 only (the diode bypasses R2), discharge through R2 only (diode blocks). on-time and off-time are now <b>independent</b>. '
+      +(v.R1<v.R2?'R1&lt;R2 → duty <b>under 50%</b> (impossible without the diode).':v.R1>v.R2?'R1&gt;R2 → duty over 50%.':'R1=R2 → exactly 50%.');
+  } else {
+    ex.innerHTML='<b>diode OFF:</b> charge runs through R1+R2, discharge through R2 — they <b>share</b> R2, so t_high always exceeds t_low. duty is <b>locked above 50%</b> no matter what. this is the limitation the diode fixes.';
+  }
+  drawSchem();
+}
+function toggleDiode(){
+  diodeOn=!diodeOn;
+  const b=document.getElementById('diodebtn');
+  b.textContent=diodeOn?'◆ DIODE: ON':'◇ DIODE: OFF';
+  b.classList.toggle('on',diodeOn);
+  update();
+}
+function drawSchem(){
+  const v=vals();
+  const s=document.getElementById('schem');
+  s.innerHTML=`
+    <rect x="80" y="80" width="100" height="120" fill="#e6ddf0" stroke="#5b3a87" stroke-width="2" rx="4"/>
+    <text x="130" y="145" font-family="Courier New" font-size="20" fill="#5b3a87" text-anchor="middle" font-weight="bold">555</text>
+    <line x1="130" y1="40" x2="130" y2="80" stroke="#5b3a87" stroke-width="2"/>
+    <text x="130" y="32" font-family="Courier New" font-size="9" fill="#5b3a87" text-anchor="middle">+Vcc</text>
+    <line x1="130" y1="200" x2="130" y2="240" stroke="#5b3a87" stroke-width="2"/>
+    <circle cx="130" cy="245" r="3" fill="#5b3a87"/>
+    <text x="130" y="262" font-family="Courier New" font-size="8" fill="#8a83a0" text-anchor="middle">GND</text>
+    <line x1="180" y1="110" x2="220" y2="110" stroke="#3a7a5a" stroke-width="2"/>
+    <text x="225" y="113" font-family="Courier New" font-size="9" fill="#3a7a5a">OUT</text>
+    <line x1="40" y1="60" x2="40" y2="100" stroke="#9a4a6a" stroke-width="2"/>
+    <rect x="34" y="100" width="12" height="28" fill="none" stroke="#9a4a6a" stroke-width="1.5"/>
+    <text x="20" y="118" font-family="Courier New" font-size="8" fill="#9a4a6a">R1</text>
+    <line x1="40" y1="128" x2="40" y2="150" stroke="#9a4a6a" stroke-width="2"/>
+    <rect x="34" y="150" width="12" height="28" fill="none" stroke="#3a6a87" stroke-width="1.5"/>
+    <text x="20" y="168" font-family="Courier New" font-size="8" fill="#3a6a87">R2</text>
+    <line x1="40" y1="178" x2="40" y2="200" stroke="#3a6a87" stroke-width="2"/>
+    <line x1="40" y1="150" x2="80" y2="150" stroke="#5b3a87" stroke-width="1.5"/>
+    <line x1="40" y1="60" x2="130" y2="60" stroke="#9a4a6a" stroke-width="1.5"/>
+    ${diodeOn?`
+      <line x1="62" y1="150" x2="62" y2="120" stroke="#9a7d3a" stroke-width="1.5"/>
+      <line x1="62" y1="120" x2="62" y2="158" stroke="#9a7d3a" stroke-width="1.5"/>
+      <polygon points="56,158 68,158 62,168" fill="#9a7d3a"/>
+      <line x1="56,168" x2="68" y1="168" y2="168" stroke="#9a7d3a" stroke-width="2"/>
+      <line x1="56" y1="168" x2="68" y2="168" stroke="#9a7d3a" stroke-width="2"/>
+      <line x1="62" y1="120" x2="40" y2="120" stroke="#9a7d3a" stroke-width="1.5"/>
+      <text x="72" y="145" font-family="Courier New" font-size="8" fill="#9a7d3a">D</text>
+    `:''}
+    <line x1="80" y1="178" x2="60" y2="178" stroke="#5b3a87" stroke-width="1.5"/>
+    <line x1="60" y1="178" x2="60" y2="210" stroke="#5b3a87" stroke-width="1.5"/>
+    <line x1="52" y1="210" x2="68" y2="210" stroke="#7e5bb0" stroke-width="2"/>
+    <line x1="52" y1="216" x2="68" y2="216" stroke="#7e5bb0" stroke-width="2"/>
+    <text x="74" y="216" font-family="Courier New" font-size="8" fill="#7e5bb0">C</text>
+    <line x1="60" y1="216" x2="60" y2="240" stroke="#5b3a87" stroke-width="1.5"/>
+    <line x1="60" y1="240" x2="130" y2="240" stroke="#5b3a87" stroke-width="1.5"/>
+  `;
+}
+// simulation loop: cap charges to 2/3 then discharges to 1/3, output flips
+function sim(now){
+  const v=vals();
+  const dt=(now-t0)/1000; t0=now;
+  if(state==='high'){
+    // charging toward 1 (Vcc), threshold 2/3
+    const tau=v.tH/ln2; // effective
+    cap += (1-cap)*(dt/tau)*ln2*1.4;
+    if(cap>=2/3){ cap=2/3; state='low'; }
+  } else {
+    const tau=v.tL/ln2;
+    cap -= (cap-0)*(dt/tau)*ln2*1.4;
+    if(cap<=1/3){ cap=1/3; state='high'; }
+  }
+  // scope buffer (output level)
+  scopeBuf.push(state==='high'?1:0);
+  if(scopeBuf.length>260) scopeBuf.shift();
+  drawScope();
+  // led + badge
+  document.getElementById('led').classList.toggle('on',state==='high');
+  document.getElementById('statebadge').innerHTML = state==='high'
+    ? 'output <span class="hi">HIGH</span> · cap charging through '+(diodeOn?'R1':'R1+R2')
+    : 'output <span class="lo">LOW</span> · cap discharging through R2';
+  anim=requestAnimationFrame(sim);
+}
+function drawScope(){
+  const cv=document.getElementById('scope'),ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,260,160);
+  // grid
+  ctx.strokeStyle='rgba(122,255,176,0.1)';ctx.lineWidth=1;
+  for(let y=0;y<160;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(260,y);ctx.stroke();}
+  // 1/3 and 2/3 lines
+  ctx.strokeStyle='rgba(122,255,176,0.25)';ctx.setLineDash([3,3]);
+  [1/3,2/3].forEach(f=>{const y=130-f*100;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(260,y);ctx.stroke();});
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(122,255,176,0.5)';ctx.font='8px Courier New';
+  ctx.fillText('⅔Vcc',2,130-2/3*100-3); ctx.fillText('⅓Vcc',2,130-1/3*100-3);
+  // output square wave (scrolling)
+  ctx.strokeStyle='#7affb0';ctx.lineWidth=2;ctx.beginPath();
+  scopeBuf.forEach((o,i)=>{ const y=o?30:130; if(i===0)ctx.moveTo(i,y); else { ctx.lineTo(i,scopeBuf[i-1]?30:130); ctx.lineTo(i,y);} });
+  ctx.stroke();
+  // cap voltage (live dot, right edge)
+  const cy=130-cap*100;
+  ctx.fillStyle='#9a7d3a';ctx.beginPath();ctx.arc(252,cy,4,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='rgba(154,125,58,0.7)';ctx.font='8px Courier New';ctx.fillText('cap',236,cy-6);
+}
+update();
+anim=requestAnimationFrame(sim);
+</script>
+</div>
+</body>
+</html>
